@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NovaVault SOC - Security Operations Center{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060d1f;
+            --sidebar: #090e1e;
+            --card: #0d1a2e;
+            --card2: #0f1f35;
+            --border: #1a2a44;
+            --accent: #00d4ff;
+            --accent2: #7c3aed;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --crit: #ef4444;
+            --high: #f97316;
+            --med: #eab308;
+            --low: #22c55e;
+            --info: #60a5fa;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            padding: 0;
+            position: fixed;
+            left: 0; top: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-brand {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #060d1f 0%, #0d1a2e 100%);
+        }
+        .sidebar-brand h5 { color: var(--accent); font-weight: 800; letter-spacing: 1px; font-size: 1.1rem; margin: 0; }
+        .sidebar-brand small { color: var(--muted); font-size: 0.7rem; }
+        .nav-item { border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .nav-link { color: var(--muted); padding: 12px 20px; display: flex; align-items: center; gap: 10px; transition: all 0.2s; font-size: 0.9rem; }
+        .nav-link:hover, .nav-link.active { color: var(--accent); background: rgba(0,212,255,0.06); border-left: 3px solid var(--accent); }
+        .nav-link i { width: 18px; text-align: center; }
+
+        /* Main content */
+        .main-content { margin-left: 240px; flex: 1; min-height: 100vh; }
+        
+        /* Top bar */
+        .topbar {
+            background: var(--sidebar);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .topbar-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .badge-crit { background: rgba(239,68,68,0.2); color: var(--crit); border: 1px solid var(--crit); }
+        .badge-high { background: rgba(249,115,22,0.2); color: var(--high); border: 1px solid var(--high); }
+        .badge-med { background: rgba(234,179,8,0.2); color: var(--med); border: 1px solid var(--med); }
+        .badge-low { background: rgba(34,197,94,0.2); color: var(--low); border: 1px solid var(--low); }
+        .badge-info { background: rgba(96,165,250,0.2); color: var(--info); border: 1px solid var(--info); }
+        
+        /* Cards */
+        .soc-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+        .soc-card-header { background: var(--card2); border: 1px solid var(--border); border-radius: 8px 8px 0 0; padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem; }
+        .soc-card-body { background: var(--card); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px; padding: 14px; }
+
+        /* Metric cards */
+        .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+        .metric-value { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+        .metric-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+        /* Tables */
+        .soc-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+        .soc-table th { color: var(--muted); padding: 10px 12px; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); font-weight: 600; }
+        .soc-table td { padding: 10px 12px; border-bottom: 1px solid rgba(26,42,68,0.6); vertical-align: middle; }
+        .soc-table tr:hover td { background: rgba(0,212,255,0.03); }
+        .soc-table tr:last-child td { border-bottom: none; }
+
+        /* Inline terminal */
+        .terminal-box { background: #000; color: #22c55e; font-family: 'Consolas', monospace; font-size: 0.82rem; padding: 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; line-height: 1.5; border: 1px solid #1a2a44; }
+
+        /* Alert pulse animation */
+        @keyframes alertPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+        .alert-live { animation: alertPulse 2s infinite; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        
+        .content-area { padding: 24px; }
+
+        .severity-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+        .dot-crit { background: var(--crit); box-shadow: 0 0 6px var(--crit); }
+        .dot-high { background: var(--high); box-shadow: 0 0 6px var(--high); }
+        .dot-med { background: var(--med); }
+        .dot-low { background: var(--low); }
+        .dot-info { background: var(--info); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <h5><i class="fa-solid fa-shield-halved me-2"></i>NOVAVAULT</h5>
+            <small>Security Operations Center</small>
+        </div>
+        <ul class="nav flex-column mt-1">
+            <li class="nav-item">
+                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                    <i class="fa-solid fa-gauge-high"></i> SOC Overview
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if '/alerts' in request.path %}active{% endif %}" href="/alerts">
+                    <i class="fa-solid fa-bell"></i> Alert Manager
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if '/log_explorer' in request.path %}active{% endif %}" href="/log_explorer">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i> Log Explorer
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if '/simulator' in request.path %}active{% endif %}" href="/simulator">
+                    <i class="fa-solid fa-flask"></i> Attack Simulator
+                </a>
+            </li>
+        </ul>
+        <div class="mt-auto p-3" style="border-top: 1px solid var(--border);">
+            <div class="d-flex align-items-center gap-2">
+                <span class="severity-dot dot-low alert-live"></span>
+                <small class="text-muted">SOC Engine Online</small>
+            </div>
+            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Internship Project 2 — SOC Lab</small>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <div class="topbar">
+            <div>
+                <span class="text-light fw-bold">{% block page_title %}NovaVault SOC Dashboard{% endblock %}</span>
+                <small class="text-muted ms-3">{{ now_time }}</small>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="topbar-badge badge-crit"><i class="fa-solid fa-circle me-1"></i>Live Monitoring</span>
+                <a href="/api/reset" onclick="return resetSOC(event)" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-rotate me-1"></i>Reset Lab
+                </a>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function resetSOC(e) {
+            e.preventDefault();
+            if (!confirm("Reset SOC state and regenerate telemetry?")) return false;
+            fetch('/api/reset', {method:'POST'}).then(() => location.reload());
+            return false;
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

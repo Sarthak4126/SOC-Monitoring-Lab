@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Incident Investigation - NovaVault SOC{% endblock %}
+{% block page_title %}Incident Investigation Workbench{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <!-- Alert Summary Card -->
+        {% set sev_map = {'Critical': 'crit', 'High': 'high', 'Medium': 'med', 'Low': 'low', 'Info': 'info'} %}
+        {% set c = sev_map.get(alert.severity, 'info') %}
+        <div class="soc-card" style="border-left: 4px solid var(--{{ c }});">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="topbar-badge badge-{{ c }}">{{ alert.severity }}</span>
+                <span class="small text-muted font-monospace">{{ alert.alert_id }}</span>
+            </div>
+            <h5 class="text-light mb-1">{{ alert.rule_name }}</h5>
+            <p class="text-muted small mb-3">{{ alert.description }}</p>
+            <hr style="border-color: var(--border);">
+            <div class="row g-2 small">
+                <div class="col-6 text-muted">CVSS Score</div>
+                <div class="col-6 text-light fw-bold" style="color: var(--{{ c }}) !important;">{{ alert.severity_score }}/100</div>
+                <div class="col-6 text-muted">Source IP</div>
+                <div class="col-6 font-monospace" style="color: var(--crit);">{{ alert.source_ip or '—' }}</div>
+                <div class="col-6 text-muted">Username</div>
+                <div class="col-6 text-light">{{ alert.username or '—' }}</div>
+                <div class="col-6 text-muted">Hostname</div>
+                <div class="col-6 text-light">{{ alert.hostname or '—' }}</div>
+                <div class="col-6 text-muted">Event Count</div>
+                <div class="col-6 text-light fw-bold">{{ alert.event_count }}</div>
+                <div class="col-6 text-muted">Status</div>
+                <div class="col-6"><span style="background: rgba(239,68,68,0.1); color: var(--crit); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">{{ alert.status }}</span></div>
+            </div>
+            <hr style="border-color: var(--border);">
+            <div class="small">
+                <div class="text-muted mb-1">MITRE ATT&CK</div>
+                <div class="mb-1"><span class="mitre-badge" style="font-size: 0.7rem; padding: 3px 8px; border-radius: 3px; background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid #7c3aed;">{{ alert.mitre_technique_id }}</span></div>
+                <div class="text-light">{{ alert.mitre_technique }}</div>
+                <div class="text-muted mt-1">Tactic: {{ alert.mitre_tactic }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Timeline -->
+        <div class="soc-card-header"><i class="fa-solid fa-timeline me-2 text-info"></i>Incident Timeline — Related Events ({{ related_events|length }})</div>
+        <div class="soc-card-body p-0" style="max-height: 75vh; overflow-y: auto;">
+            <table class="soc-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Category</th>
+                        <th>Severity</th>
+                        <th>Event Action</th>
+                        <th>Log Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in related_events %}
+                    {% set c2 = sev_map.get(e.severity, 'info') %}
+                    <tr {% if e.alert_triggered %} style="background: rgba(239,68,68,0.04);" {% endif %}>
+                        <td class="small font-monospace" style="white-space: nowrap;">{{ e.timestamp }}</td>
+                        <td><span class="small px-2 py-1" style="background: rgba(0,212,255,0.07); color: var(--info); border-radius: 4px;">{{ e.event_category }}</span></td>
+                        <td>
+                            <span class="severity-dot dot-{{ c2 }}"></span>
+                            <span class="small" style="color: var(--{{ c2 }});">{{ e.severity }}</span>
+                            {% if e.alert_triggered %}<i class="fa-solid fa-circle-exclamation text-danger ms-1" style="font-size: 0.7rem;"></i>{% endif %}
+                        </td>
+                        <td class="small" style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ e.event_action }}">{{ e.event_action or e.raw_log }}</td>
+                        <td class="small text-muted">{{ e.log_source }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center py-4 text-muted">No related events found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-2">
+    <a href="/alerts" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to Alert Queue</a>
+</div>
+{% endblock %}

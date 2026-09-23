@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}SOC Overview Dashboard - NovaVault{% endblock %}
+{% block page_title %}SOC Operations Overview{% endblock %}
+
+{% block extra_css %}
+<style>
+.mitre-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 3px; background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid #7c3aed; font-family: monospace; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Top Metric Cards Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="metric-card" style="border-left: 4px solid var(--accent);">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="metric-label">Total Events Ingested</div>
+                    <div class="metric-value text-info mt-2">{{ metrics.total_events }}</div>
+                </div>
+                <i class="fa-solid fa-database fa-2x opacity-25 text-info"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card" style="border-left: 4px solid var(--crit);">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="metric-label">Active Alerts</div>
+                    <div class="metric-value text-danger mt-2">{{ metrics.total_alerts }}</div>
+                </div>
+                <i class="fa-solid fa-bell fa-2x opacity-25 text-danger alert-live"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card" style="border-left: 4px solid var(--crit);">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="metric-label">Critical Threats</div>
+                    <div class="metric-value text-danger mt-2">{{ metrics.severity_distribution.Critical }}</div>
+                </div>
+                <i class="fa-solid fa-skull-crossbones fa-2x opacity-25 text-danger"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card" style="border-left: 4px solid var(--high);">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="metric-label">High Severity</div>
+                    <div class="metric-value text-warning mt-2">{{ metrics.severity_distribution.High }}</div>
+                </div>
+                <i class="fa-solid fa-triangle-exclamation fa-2x opacity-25 text-warning"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Severity Distribution + Event Categories + Top IPs -->
+<div class="row g-3 mb-4">
+
+    <!-- Severity Distribution -->
+    <div class="col-md-4">
+        <div class="soc-card-header"><i class="fa-solid fa-chart-pie me-2 text-info"></i>Alert Severity Distribution</div>
+        <div class="soc-card-body">
+            {% set total = metrics.total_alerts if metrics.total_alerts > 0 else 1 %}
+            {% for sev, color, dot in [
+                ('Critical', 'crit', 'dot-crit'),
+                ('High', 'high', 'dot-high'),
+                ('Medium', 'med', 'dot-med'),
+                ('Low', 'low', 'dot-low'),
+                ('Info', 'info', 'dot-info')
+            ] %}
+            {% set count = metrics.severity_distribution.get(sev, 0) %}
+            {% set pct = (count / total * 100)|round(1) %}
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="d-flex align-items-center gap-1 small">
+                        <span class="severity-dot {{ dot }}"></span>{{ sev }}
+                    </span>
+                    <span class="small fw-bold">{{ count }}</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.07); border-radius: 4px; height: 6px;">
+                    <div style="background: var(--{{ color }}); width: {{ pct }}%; height: 6px; border-radius: 4px;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Event Categories -->
+    <div class="col-md-4">
+        <div class="soc-card-header"><i class="fa-solid fa-layer-group me-2 text-info"></i>Event Categories</div>
+        <div class="soc-card-body">
+            {% for cat, cnt in metrics.event_categories.items() %}
+            {% set pct = (cnt / metrics.total_events * 100)|round(1) if metrics.total_events > 0 else 0 %}
+            <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small text-muted">{{ cat|title }}</span>
+                    <span class="small fw-bold">{{ cnt }}</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.07); border-radius: 4px; height: 5px;">
+                    <div style="background: var(--accent); width: {{ pct }}%; height: 5px; border-radius: 4px; opacity: 0.7;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Top Source IPs -->
+    <div class="col-md-4">
+        <div class="soc-card-header"><i class="fa-solid fa-network-wired me-2 text-info"></i>Top Source IPs</div>
+        <div class="soc-card-body p-0">
+            <table class="soc-table">
+                <thead>
+                    <tr><th>Source IP</th><th>Events</th><th>Threat</th></tr>
+                </thead>
+                <tbody>
+                    {% for ip, cnt in metrics.top_source_ips %}
+                    {% set is_attacker = ip.startswith('185.') or ip.startswith('91.') or ip.startswith('45.') or ip.startswith('203.') or ip.startswith('198.') %}
+                    <tr>
+                        <td class="font-monospace small" style="color: {% if is_attacker %}var(--crit){% else %}var(--info){% endif %};">{{ ip }}</td>
+                        <td class="small fw-bold">{{ cnt }}</td>
+                        <td>
+                            {% if is_attacker %}
+                            <span class="topbar-badge badge-crit" style="font-size:0.65rem;">SUSPECT</span>
+                            {% else %}
+                            <span class="topbar-badge badge-low" style="font-size:0.65rem;">INTERNAL</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: MITRE ATT&CK + Events Timeline -->
+<div class="row g-3 mb-4">
+
+    <!-- MITRE ATT&CK Tactic Distribution -->
+    <div class="col-md-5">
+        <div class="soc-card-header"><i class="fa-solid fa-spider me-2 text-purple" style="color:#a78bfa;"></i>MITRE ATT&CK® Tactic Mapping</div>
+        <div class="soc-card-body">
+            {% if metrics.mitre_tactics %}
+            {% for tactic, count in metrics.mitre_tactics.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom" style="border-color: var(--border)!important;">
+                <div>
+                    <span class="mitre-badge">{{ tactic }}</span>
+                </div>
+                <span class="badge bg-secondary">{{ count }} alerts</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted small">No MITRE ATT&CK data. Run telemetry first.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Timeline & Recent Alerts -->
+    <div class="col-md-7">
+        <div class="soc-card-header d-flex justify-content-between align-items-center">
+            <span><i class="fa-solid fa-stream me-2 text-info"></i>Live Alert Stream</span>
+            <a href="/alerts" class="text-info small text-decoration-none">View All →</a>
+        </div>
+        <div class="soc-card-body p-0" style="max-height: 350px; overflow-y: auto;">
+            <div id="alert-stream">
+                <table class="soc-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Severity</th>
+                            <th>Rule</th>
+                            <th>Source IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alert-stream-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadAlertStream() {
+    fetch('/api/alerts')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('alert-stream-body');
+            const rows = data.alerts.slice(0, 15).map(a => {
+                const sevColors = { Critical:'crit', High:'high', Medium:'med', Low:'low', Info:'info' };
+                const c = sevColors[a.severity] || 'info';
+                return `<tr>
+                    <td class="small text-muted font-monospace">${a.timestamp.slice(11)}</td>
+                    <td><span class="topbar-badge badge-${c}" style="font-size:0.65rem;">${a.severity.toUpperCase()}</span></td>
+                    <td class="small">${a.rule_name}</td>
+                    <td class="small font-monospace" style="color:var(--crit);">${a.source_ip}</td>
+                </tr>`;
+            }).join('');
+            tbody.innerHTML = rows || '<tr><td colspan="4" class="text-center text-muted py-3 small">No alerts yet.</td></tr>';
+        });
+}
+loadAlertStream();
+setInterval(loadAlertStream, 10000);
+</script>
+{% endblock %}

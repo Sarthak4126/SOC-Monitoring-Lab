@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Attack Simulator - NovaVault SOC{% endblock %}
+{% block page_title %}Interactive Attack Simulator{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <p class="text-muted small">Trigger realistic attack scenarios against the lab environment and observe live detection in the SOC dashboard. Each scenario generates telemetry events and fires correlation rules.</p>
+</div>
+
+<div class="row g-3">
+
+    {% macro sim_card(icon, icon_color, title, scenario_id, mitre_id, mitre_name, tactic, severity, sev_class, desc) %}
+    <div class="col-md-6 col-lg-4">
+        <div class="soc-card h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <i class="{{ icon }} fa-2x" style="color: {{ icon_color }};"></i>
+                <span class="topbar-badge badge-{{ sev_class }}" style="font-size: 0.65rem;">{{ severity }}</span>
+            </div>
+            <h6 class="text-light mt-2 mb-1">{{ title }}</h6>
+            <p class="text-muted small flex-grow-1">{{ desc }}</p>
+            <div class="mb-3">
+                <span class="mitre-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 3px; background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid #7c3aed;">{{ mitre_id }}</span>
+                <span class="small text-muted ms-1">{{ mitre_name }} — {{ tactic }}</span>
+            </div>
+            <button class="btn btn-sm w-100 simulate-btn" data-scenario="{{ scenario_id }}"
+                style="background: rgba(239,68,68,0.1); color: var(--crit); border: 1px solid var(--crit); font-weight: 600;">
+                <i class="fa-solid fa-play me-2"></i>Run Simulation
+            </button>
+            <div class="result-box mt-2 small text-muted font-monospace" id="result-{{ scenario_id }}" style="display:none;"></div>
+        </div>
+    </div>
+    {% endmacro %}
+
+    {{ sim_card(
+        'fa-solid fa-key', '#ef4444',
+        'SSH / Admin Brute Force Attack',
+        'brute_force', 'T1110', 'Brute Force', 'Credential Access',
+        'CRITICAL', 'crit',
+        'Simulates 20 rapid consecutive failed SSH login attempts from a known attacker IP. Triggers IDS-AUTH-001 rule and Wazuh behavioral correlation.'
+    ) }}
+
+    {{ sim_card(
+        'fa-solid fa-database', '#f97316',
+        'SQL Injection Attack (SQLMap)',
+        'sqli', 'T1190', 'Exploit Public-Facing App', 'Initial Access',
+        'CRITICAL', 'crit',
+        'Simulates automated SQLMap-style SQL injection payloads against the product catalog and login endpoints. Triggers IDS-WEB-002 rule.'
+    ) }}
+
+    {{ sim_card(
+        'fa-solid fa-radar', '#eab308',
+        'Network Port Scan (Nmap SYN)',
+        'port_scan', 'T1046', 'Network Service Discovery', 'Discovery',
+        'HIGH', 'high',
+        'Simulates an Nmap SYN stealth scan across 15 common service ports. Triggers IDS-NET-001 sequential port scan detection rule.'
+    ) }}
+
+    {{ sim_card(
+        'fa-solid fa-user-secret', '#a78bfa',
+        'Privilege Escalation & Credential Dump',
+        'privesc', 'T1548', 'Abuse Elevation Control', 'Privilege Escalation',
+        'CRITICAL', 'crit',
+        'Simulates suspicious Sysmon process events: Mimikatz credential dump, net localgroup admin add, disabling Windows Defender, and remote payload download.'
+    ) }}
+
+    {{ sim_card(
+        'fa-solid fa-file-code', '#60a5fa',
+        'Malicious Webshell File Upload',
+        'webshell', 'T1505.003', 'Web Shell', 'Persistence',
+        'CRITICAL', 'crit',
+        'Simulates upload of dangerous script files (.php, .aspx, .jsp) disguised as images to the avatar upload endpoint. Triggers IDS-WEB-005.'
+    ) }}
+
+    <!-- Threat Intelligence Panel -->
+    <div class="col-md-6 col-lg-4">
+        <div class="soc-card h-100">
+            <h6 class="text-light mb-3"><i class="fa-solid fa-globe me-2 text-info"></i>Threat Intelligence Summary</h6>
+            <p class="small text-muted mb-3">Attacker IP Intelligence — Active Indicators of Compromise (IOCs)</p>
+            <div class="terminal-box" style="font-size: 0.75rem; max-height: 200px; overflow-y: auto;">
+[TI] 185.220.101.47 → Tor Exit Node | Attribution: APT29
+[TI] 91.109.22.44  → Bulletproof VPS | Attribution: TA505
+[TI] 45.33.32.156  → Shodan Scanner  | Attribution: Opportunistic
+[TI] 203.0.113.55  → DOCUMENTATION   | Safe for Lab Use
+[TI] 198.51.100.22 → DOCUMENTATION   | Safe for Lab Use
+
+[IOC] User-Agent: sqlmap/1.7.8#stable
+[IOC] User-Agent: Nmap Scripting Engine
+[IOC] User-Agent: Nikto/2.1.6
+[IOC] Dest Port: 22 → SSH Brute Force
+[IOC] URL Pattern: UNION SELECT
+[IOC] CMD: sekurlsa::logonpasswords
+            </div>
+            <div class="mt-3">
+                <a href="/alerts" class="btn btn-sm w-100 btn-outline-secondary">View All Triggered Alerts →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Result Box -->
+<div id="global-result" class="soc-card mt-4 d-none">
+    <h6 class="text-info mb-2"><i class="fa-solid fa-circle-check me-2"></i>Simulation Result</h6>
+    <div id="global-result-body" class="terminal-box"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.simulate-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const scenario = this.dataset.scenario;
+        this.disabled = true;
+        this.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Running...';
+
+        fetch(`/api/simulate/${scenario}`, {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa-solid fa-check me-2"></i>Completed';
+                this.style.background = 'rgba(34,197,94,0.1)';
+                this.style.color = 'var(--low)';
+                this.style.borderColor = 'var(--low)';
+
+                const globalBox = document.getElementById('global-result');
+                const globalBody = document.getElementById('global-result-body');
+                globalBox.classList.remove('d-none');
+                const sevSummary = Object.entries(data.severity_summary || {})
+                    .filter(([k, v]) => v > 0)
+                    .map(([k, v]) => `  [${k}] ${v}`)
+                    .join('\n');
+                globalBody.innerText = 
+`[+] Scenario: ${data.scenario}
+[+] Events Generated: ${data.new_events_generated}
+[+] New Alerts Triggered: ${data.new_alerts_triggered}
+[+] Total Alerts in SOC: ${data.total_alerts}
+[+] Severity Breakdown:
+${sevSummary}
+[*] Navigate to Alert Manager to investigate →`;
+            })
+            .catch(err => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa-solid fa-play me-2"></i>Run Simulation';
+                alert('Simulation failed: ' + err.message);
+            });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Alert Manager - NovaVault SOC{% endblock %}
+{% block page_title %}Alert Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-muted small mb-0">All triggered IDS & SIEM correlation rule alerts — sorted by severity score.</p>
+    </div>
+    <span class="topbar-badge badge-crit alert-live">{{ alerts|length }} Active Alerts</span>
+</div>
+
+<div class="soc-card-header"><i class="fa-solid fa-bell me-2 text-danger"></i>Security Alert Queue</div>
+<div class="soc-card-body p-0" style="max-height: 75vh; overflow-y: auto;">
+    <table class="soc-table">
+        <thead>
+            <tr>
+                <th>Alert ID</th>
+                <th>Timestamp</th>
+                <th>Severity</th>
+                <th>Rule</th>
+                <th>Source IP</th>
+                <th>MITRE Technique</th>
+                <th>Events</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in alerts %}
+            {% set sev_map = {'Critical': 'crit', 'High': 'high', 'Medium': 'med', 'Low': 'low', 'Info': 'info'} %}
+            {% set c = sev_map.get(a.severity, 'info') %}
+            <tr>
+                <td class="small font-monospace text-muted">{{ a.alert_id }}</td>
+                <td class="small font-monospace">{{ a.timestamp }}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="severity-dot dot-{{ c }}"></span>
+                        <span class="topbar-badge badge-{{ c }}" style="font-size: 0.65rem;">{{ a.severity }}</span>
+                    </div>
+                </td>
+                <td class="small">{{ a.rule_name }}</td>
+                <td class="small font-monospace" style="color: var(--crit);">{{ a.source_ip }}</td>
+                <td>
+                    {% if a.mitre_technique_id %}
+                    <span class="mitre-badge" style="font-size: 0.68rem; padding: 2px 6px; border-radius: 3px; background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid #7c3aed;">{{ a.mitre_technique_id }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="small fw-bold">{{ a.event_count }}</td>
+                <td>
+                    <span class="small px-2 py-1" style="background: rgba(239,68,68,0.1); color: var(--crit); border-radius: 4px;">{{ a.status }}</span>
+                </td>
+                <td>
+                    <a href="/incident/{{ a.alert_id }}" class="btn btn-sm" style="background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid var(--accent); font-size: 0.75rem;">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i>Investigate
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-center py-5 text-muted"><i class="fa-solid fa-circle-check me-2 text-success"></i>No alerts detected.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

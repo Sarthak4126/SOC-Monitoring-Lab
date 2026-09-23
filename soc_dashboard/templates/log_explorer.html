@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Log Explorer - NovaVault SOC{% endblock %}
+{% block page_title %}Log Explorer{% endblock %}
+
+{% block content %}
+
+<!-- Search Filters -->
+<div class="soc-card mb-4">
+    <form method="GET" action="/log_explorer" class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="small text-muted mb-1">Keyword Search</label>
+            <input type="text" name="q" value="{{ search_q }}" class="form-control form-control-sm" style="background: #0d1a2e; color: #e2e8f0; border-color: #1a2a44;" placeholder="Search raw logs, actions, IPs...">
+        </div>
+        <div class="col-md-2">
+            <label class="small text-muted mb-1">Category</label>
+            <select name="category" class="form-select form-select-sm" style="background: #0d1a2e; color: #e2e8f0; border-color: #1a2a44;">
+                <option value="">All Categories</option>
+                <option value="authentication" {% if category == 'authentication' %}selected{% endif %}>Authentication</option>
+                <option value="web" {% if category == 'web' %}selected{% endif %}>Web</option>
+                <option value="network" {% if category == 'network' %}selected{% endif %}>Network</option>
+                <option value="process" {% if category == 'process' %}selected{% endif %}>Process</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="small text-muted mb-1">Severity</label>
+            <select name="severity" class="form-select form-select-sm" style="background: #0d1a2e; color: #e2e8f0; border-color: #1a2a44;">
+                <option value="">All Severities</option>
+                <option value="Critical" {% if severity == 'Critical' %}selected{% endif %}>Critical</option>
+                <option value="High" {% if severity == 'High' %}selected{% endif %}>High</option>
+                <option value="Medium" {% if severity == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Low" {% if severity == 'Low' %}selected{% endif %}>Low</option>
+                <option value="Info" {% if severity == 'Info' %}selected{% endif %}>Info</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm" style="background: var(--accent); color: #000; font-weight: 600;">
+                <i class="fa-solid fa-magnifying-glass me-1"></i>Search Logs
+            </button>
+            <a href="/log_explorer" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Results Count -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-muted">Showing <strong class="text-light">{{ events|length }}</strong> events (max 200)</span>
+    <small class="text-muted font-monospace">Log Source: All Ingested Telemetry | Format: ECS Normalized</small>
+</div>
+
+<!-- Log Table -->
+<div class="soc-card-body p-0" style="border: 1px solid var(--border); border-radius: 8px; max-height: 62vh; overflow-y: auto;">
+    <table class="soc-table">
+        <thead style="position: sticky; top: 0; background: var(--card2); z-index: 5;">
+            <tr>
+                <th>Timestamp</th>
+                <th>Category</th>
+                <th>Severity</th>
+                <th>Source IP</th>
+                <th>Host</th>
+                <th>Event Action / Raw Log</th>
+                <th>Log Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in events %}
+            {% set sev_map = {'Critical': 'crit', 'High': 'high', 'Medium': 'med', 'Low': 'low', 'Info': 'info'} %}
+            {% set c = sev_map.get(e.severity, 'info') %}
+            <tr>
+                <td class="font-monospace small" style="white-space: nowrap;">{{ e.timestamp }}</td>
+                <td><span class="small px-2 py-1" style="background: rgba(0,212,255,0.07); color: var(--info); border-radius: 4px;">{{ e.event_category }}</span></td>
+                <td>
+                    <span class="severity-dot dot-{{ c }}"></span>
+                    <span class="small" style="color: var(--{{ c }});">{{ e.severity }}</span>
+                </td>
+                <td class="small font-monospace">{{ e.source_ip or '—' }}</td>
+                <td class="small text-muted">{{ e.hostname or '—' }}</td>
+                <td class="small" style="max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ e.raw_log }}">
+                    {{ e.event_action or e.raw_log }}
+                </td>
+                <td class="small text-muted">{{ e.log_source }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-5 text-muted">No events matched your filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
